@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Pane Demo</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f5f5f5;
+    }
+    h1 { margin: 0 0 20px; font-size: 1.5rem; }
+    .controls {
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .controls button {
+      padding: 8px 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .controls button:hover { background: #eee; }
+    .controls button.active { background: #007bff; color: white; border-color: #007bff; }
+    .pane-container {
+      display: flex;
+      gap: 20px;
+      height: 500px;
+    }
+    .pane-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .pane-header {
+      padding: 10px 14px;
+      background: #f8f8f8;
+      border-bottom: 1px solid #ddd;
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pane-header .lang-tag {
+      font-size: 12px;
+      padding: 2px 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      font-weight: normal;
+    }
+    .pane-host {
+      flex: 1;
+      position: relative;
+    }
+    .diagnostics-panel {
+      margin-top: 20px;
+      padding: 16px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .diagnostics-panel h3 {
+      margin: 0 0 12px;
+      font-size: 14px;
+    }
+    .diagnostics-panel ul {
+      margin: 0;
+      padding: 0 0 0 20px;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+    }
+    .diagnostics-panel li { color: #c00; margin-bottom: 4px; }
+    .diagnostics-panel .no-errors { color: #080; }
+
+    /* Code Pane Styles */
+    .code-pane {
+      display: flex;
+      position: relative;
+      height: 100%;
+      background: #fafafa;
+    }
+    .code-pane__lines {
+      position: relative;
+      width: 3em;
+      padding: 12px 8px 12px 0;
+      text-align: right;
+      user-select: none;
+      opacity: .5;
+      font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      background: #f0f0f0;
+      border-right: 1px solid #ddd;
+      overflow: hidden;
+    }
+    .code-pane__lines > div {
+      height: 1.4em;
+    }
+    .code-pane__body {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+    .code-pane__editor,
+    .code-pane__syntax {
+      font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .code-pane__editor {
+      position: relative;
+      z-index: 3;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 12px;
+      border: 0;
+      outline: none;
+      background: transparent;
+      overflow: auto;
+      white-space: pre;
+      resize: none;
+      /* Make text transparent so overlay shows through */
+      color: transparent;
+      caret-color: #333;
+    }
+    .code-pane__viewer {
+      color: inherit;
+      caret-color: transparent;
+      cursor: default;
+    }
+    .code-pane__overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      padding: 12px;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .code-pane__syntax {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      white-space: pre;
+      background: transparent;
+    }
+    .code-pane__errlayer {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+    }
+    .code-pane__errline {
+      height: 1.4em;
+    }
+    .code-pane__errline--on {
+      background: rgba(255, 0, 0, 0.12);
+    }
+  </style>
+</head>
+<body>
+  <h1>Code Pane Demo</h1>
+
+  <div class="controls">
+    <button id="toggleReadonly">Toggle Readonly</button>
+    <button id="insertError">Insert CSS Error</button>
+    <button id="resetCode">Reset Code</button>
+    <span id="readonlyStatus" style="font-size: 14px; color: #666;">Mode: Editable</span>
+  </div>
+
+  <div class="pane-container">
+    <div class="pane-wrapper">
+      <div class="pane-header">
+        <span>CSS Editor</span>
+        <span class="lang-tag">CSS</span>
+      </div>
+      <div class="pane-host" id="cssHost"></div>
+    </div>
+    <div class="pane-wrapper">
+      <div class="pane-header">
+        <span>Output Preview</span>
+        <span class="lang-tag">Read-only</span>
+      </div>
+      <div class="pane-host" id="outputHost"></div>
+    </div>
+  </div>
+
+  <div class="diagnostics-panel">
+    <h3>Diagnostics</h3>
+    <ul id="diagnosticsList">
+      <li class="no-errors">No errors</li>
+    </ul>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+  <script type="module">
+    import { createCodePane } from './createCodePane.js';
+
+    const initialCSS = `.container {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 20px;
+	background: #ffffff;
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+	font-size: 24px;
+	font-weight: bold;
+	color: #333;
+}
+
+.button {
+	padding: 10px 20px;
+	background: #007bff;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.2s ease;
+}
+
+.button:hover {
+	background: #0056b3;
+}`;
+
+    // Simple CSS validator (checks for common issues)
+    function validateCSS(text) {
+      const errors = [];
+      const lines = text.split('\n');
+
+      let braceDepth = 0;
+      let inRule = false;
+
+      lines.forEach((line, i) => {
+        const lineNum = i + 1;
+        const trimmed = line.trim();
+
+        // Count braces
+        for (const ch of line) {
+          if (ch === '{') { braceDepth++; inRule = true; }
+          if (ch === '}') { braceDepth--; inRule = false; }
+        }
+
+        // Check for missing semicolon (simple heuristic)
+        if (inRule && trimmed && !trimmed.endsWith('{') && !trimmed.endsWith('}') && !trimmed.endsWith(';') && !trimmed.startsWith('/*') && !trimmed.startsWith('//')) {
+          // Property line without semicolon
+          if (trimmed.includes(':') && !trimmed.endsWith(',')) {
+            errors.push({ lineNumber: lineNum, message: `Missing semicolon` });
+          }
+        }
+
+        // Check for invalid property syntax
+        if (inRule && trimmed.includes(':')) {
+          const colonIdx = trimmed.indexOf(':');
+          const prop = trimmed.slice(0, colonIdx).trim();
+          if (prop && /[^a-zA-Z0-9\-_]/.test(prop)) {
+            errors.push({ lineNumber: lineNum, message: `Invalid property name: "${prop}"` });
+          }
+        }
+      });
+
+      // Check for unbalanced braces
+      if (braceDepth !== 0) {
+        errors.push({ lineNumber: lines.length, message: `Unbalanced braces (depth: ${braceDepth})` });
+      }
+
+      return errors;
+    }
+
+    // Syntax highlighter using Prism
+    const syntaxToHtml = (text, lang) => {
+      const grammar = Prism.languages[lang] || Prism.languages.plain;
+      return Prism.highlight(text, grammar, lang);
+    };
+
+    // Track readonly state
+    let isReadonly = false;
+    const diagnosticsList = document.getElementById('diagnosticsList');
+    const readonlyStatus = document.getElementById('readonlyStatus');
+
+    function updateDiagnosticsDisplay(diagnostics) {
+      if (diagnostics.length === 0) {
+        diagnosticsList.innerHTML = '<li class="no-errors">No errors</li>';
+      } else {
+        diagnosticsList.innerHTML = diagnostics
+          .map(d => `<li>Line ${d.lineNumber}: ${d.message}</li>`)
+          .join('');
+      }
+    }
+
+    // Create main CSS editor pane
+    const cssPane = createCodePane({
+      value: initialCSS,
+      language: 'css',
+      readonly: false,
+      readonlyRenderer: 'pre',
+      validate: validateCSS,
+      syntaxToHtml,
+      onChange: (text, { diagnostics }) => {
+        updateDiagnosticsDisplay(diagnostics);
+        outputPane.setValue(text);
+      }
+    });
+
+    // Create readonly output pane
+    const outputPane = createCodePane({
+      value: initialCSS,
+      language: 'css',
+      readonly: true,
+      readonlyRenderer: 'pre',
+      syntaxToHtml,
+      showLineNumbers: true,
+      enableOverlay: true
+    });
+
+    document.getElementById('cssHost').appendChild(cssPane.root);
+    document.getElementById('outputHost').appendChild(outputPane.root);
+
+    // Initial diagnostics
+    updateDiagnosticsDisplay(validateCSS(initialCSS));
+
+    // Controls
+    document.getElementById('toggleReadonly').addEventListener('click', () => {
+      isReadonly = !isReadonly;
+      cssPane.setReadonly(isReadonly);
+      readonlyStatus.textContent = `Mode: ${isReadonly ? 'Readonly' : 'Editable'}`;
+      document.getElementById('toggleReadonly').classList.toggle('active', isReadonly);
+    });
+
+    document.getElementById('insertError').addEventListener('click', () => {
+      const current = cssPane.getValue();
+      const errorCSS = current + '\n\n.broken {\n\tcolor red\n\tbackground\n}';
+      cssPane.setValue(errorCSS);
+    });
+
+    document.getElementById('resetCode').addEventListener('click', () => {
+      cssPane.setValue(initialCSS);
+    });
+  </script>
+</body>
+</html>
