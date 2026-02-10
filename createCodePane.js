@@ -17,7 +17,7 @@ export function createCodePane({
   // ---------- DOM Structure ----------
   // Mimics the original: highlight div contains line divs with syntax content
   // textarea sits on top with transparent text
-  
+
   const root = document.createElement('div');
   root.className = 'code-pane';
   if (language) root.dataset.lang = language;
@@ -111,7 +111,7 @@ export function createCodePane({
   // This is the key function - like the original updateHighlight()
   const renderHighlight = (text, diags) => {
     if (!enableOverlay) return;
-    
+
     const lines = text.split('\n');
     const errLines = new Set(
       (diags || []).map(d => d.lineNumber).filter(n => Number.isFinite(n))
@@ -155,17 +155,17 @@ export function createCodePane({
     const scrollLeft = activeEl().scrollLeft;
 
     if (readonlyRenderer === 'textarea') {
-      ta.hidden = false;
-      pre.hidden = true;
+      ta.style.display = '';
+      pre.style.display = 'none';
       ta.readOnly = _readonly;
       ta.style.caretColor = _readonly ? 'transparent' : '';
     } else {
       if (_readonly) {
-        pre.hidden = false;
-        ta.hidden = true;
+        pre.style.display = '';
+        ta.style.display = 'none';
       } else {
-        ta.hidden = false;
-        pre.hidden = true;
+        ta.style.display = '';
+        pre.style.display = 'none';
         ta.readOnly = false;
         ta.style.caretColor = '';
       }
@@ -188,6 +188,12 @@ export function createCodePane({
 
     renderHighlight(text, diags);
     renderLineNumbers(lineCount);
+
+    // Auto-size: ensure the active element expands to fit content
+    const el = activeEl();
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+
     syncScroll();
 
     _onChange?.(text, { diagnostics: diags });
@@ -267,8 +273,8 @@ export function createCodePane({
   setText(value);
 
   // Set initial visibility
-  pre.hidden = !(readonlyRenderer === 'pre' && _readonly);
-  ta.hidden = (readonlyRenderer === 'pre' && _readonly);
+  pre.style.display = (readonlyRenderer === 'pre' && _readonly) ? '' : 'none';
+  ta.style.display = (readonlyRenderer === 'pre' && _readonly) ? 'none' : '';
   if (readonlyRenderer === 'textarea') {
     ta.readOnly = _readonly;
     ta.style.caretColor = _readonly ? 'transparent' : '';
