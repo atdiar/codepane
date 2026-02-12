@@ -9,7 +9,6 @@ export function createCodePane({
   showLineNumbers = true,
   enableOverlay = true,
   readonlyRenderer = 'textarea', // 'textarea' | 'pre'
-  fontFamily = "ui-monospace, Menlo, Consolas, 'DejaVu Sans Mono', monospace",
   validate = null,
   diagnostics = null,
   syntaxToHtml = null,
@@ -22,7 +21,6 @@ export function createCodePane({
   const root = document.createElement('div');
   root.className = 'code-pane';
   if (language) root.dataset.lang = language;
-  root.style.setProperty('--code-font', fontFamily);
 
   const lineNums = document.createElement('div');
   lineNums.className = 'code-pane__lines';
@@ -105,9 +103,6 @@ export function createCodePane({
   const renderLineNumbers = (lineCount) => {
     if (!showLineNumbers) return;
     lineNums.innerHTML = Array.from({ length: lineCount }, (_, i) => `<div>${i + 1}</div>`).join('');
-    // Auto-size gutter width: digits + padding, using ch units for font-proportional sizing
-    const digits = Math.max(2, String(lineCount).length);
-    lineNums.style.width = `${digits + 1.5}ch`;
     const el = activeEl();
     lineNums.style.height = `${el.scrollHeight}px`;
   };
